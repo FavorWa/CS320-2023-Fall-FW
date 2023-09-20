@@ -18,6 +18,7 @@ let isPrime(n) =
   else 
   test(i+1)
   in test 2
+  in
   if n < 2 then false else int1_forall(n)(test)
-
+;;
 (* ************************************************ *)
