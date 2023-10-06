@@ -21,3 +21,4 @@
 
 def foreach_to_get_at(foreach): # your implementation below
 
+  foreach

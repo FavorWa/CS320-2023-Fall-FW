@@ -10,4 +10,9 @@ Please give an implementation of list_reverse based on list_foldright
 
 (* ************************************************ *)
 
-let list_reverse(xs: 'a list): 'a list = ....
+let list_reverse(xs: 'a list): 'a list =
+  let rec reverse_helper acc = function
+    | [] -> acc
+    | hd :: tl -> reverse_helper (hd :: acc) tl
+  in
+  reverse_helper [] xs

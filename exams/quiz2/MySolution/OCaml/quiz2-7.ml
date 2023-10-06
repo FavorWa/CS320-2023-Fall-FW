@@ -17,4 +17,5 @@ match xs with
 
 (* ************************************************ *)
 
-let list_append(xs: 'a list): 'a list = ....
+let list_append(xs: 'a list)(ys: 'a list): 'a list =
+  List.fold_left (fun acc x -> x :: acc) ys (List.rev xs)
