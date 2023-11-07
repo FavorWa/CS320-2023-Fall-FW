@@ -1,0 +1,25 @@
+⟨digit⟩ ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+⟨nat⟩ :: = ⟨digit⟩ | ⟨digit⟩⟨nat⟩
+⟨int⟩ ::= ⟨nat⟩ | -⟨nat⟩
+⟨expr⟩ ::= ⟨int⟩
+| ( ⟨expr⟩ )
+| ( ⟨expr⟩ )
+
+⟨expr⟩ = ⟨expr⟩ + ⟨expr⟩
+       = ⟨expr⟩ + ⟨expr⟩ * ⟨expr⟩
+       = ⟨expr⟩ + ⟨expr⟩ * ⟨int⟩
+       = ⟨expr⟩ + ⟨expr⟩ * -⟨nat⟩
+       = ⟨expr⟩ + ⟨expr⟩ * -⟨digit⟩⟨nat⟩
+       = ⟨expr⟩ + ⟨expr⟩ * -⟨digit⟩⟨digit⟩
+       = ⟨expr⟩ + ⟨expr⟩ * -⟨digit⟩7
+       = ⟨expr⟩ + ⟨expr⟩ * -07
+       = ⟨expr⟩ + ⟨int⟩  * -07
+       = ⟨expr⟩ + ⟨nat⟩  * -07
+       = ⟨expr⟩ + ⟨digit⟩ *-07
+       = ⟨expr⟩ + 2 * -07
+       = ⟨int⟩ + 2 * -07
+       = ⟨nat⟩ + 2 * -07
+       = ⟨digit⟩⟨nat⟩ + 2 * -07
+       = ⟨digit⟩⟨digit⟩ + 2 * -07
+       = ⟨digit⟩2 + 2 * -07
+       = 12 + 2 * -07
