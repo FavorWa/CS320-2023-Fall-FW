@@ -29,7 +29,7 @@ and com =
   | Trace | Add | Sub | Mul
   | Div | And | Or | Not
   | Lt | Gt
-  | IfElse of com list * com list 
+  | If of com list * com list 
   | Bind | Lookup 
   | Fun of com list
   | Call | Return
@@ -82,10 +82,10 @@ let rec parse_com ()=
   (keyword "Lookup" >> pure Lookup) <|>
   (keyword "Call" >> pure Call) <|>
   (keyword "Return" >> pure Return) <|>
-  parse_if_else() <|>
+  parse_ifStatement() <|>
   parse_fun()
 and parse_coms ()= many' (fun x -> parse_com x << keyword ";")
-and parse_if_else ()=
+and parse_ifStatement ()=
   keyword "If" >> parse_coms () >>= fun c1 ->
   keyword "Else" >> parse_coms () >>= fun c2 -> 
   keyword "End" >>
