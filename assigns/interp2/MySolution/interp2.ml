@@ -14,6 +14,8 @@ Notes:
 
 (*UTIL*)
 
+let implode ls =
+  String.of_seq (List.to_seq ls)
 
 type const =
   | Int of int
@@ -27,7 +29,7 @@ and com =
   | Trace | Add | Sub | Mul
   | Div | And | Or | Not
   | Lt | Gt
-  | If of com list * com list 
+  | IfElse of com list * com list 
   | Bind | Lookup 
   | Fun of com list
   | Call | Return
@@ -80,12 +82,16 @@ let rec parse_com ()=
   (keyword "Lookup" >> pure Lookup) <|>
   (keyword "Call" >> pure Call) <|>
   (keyword "Return" >> pure Return) <|>
-  (keyword "If" >> parse_coms () >>= fun ifComs ->
-  keyword "Else" >> parse_coms () >>= fun elseCOms -> 
-  keyword "End" >>
-  pure (If (ifCOms, elseComs))) <|>
-  keyword "Fun" >> parse_coms () >>= fun c1 -> keyword "End" >> pure (Fun c1)
+  parse_if_else() <|>
+  parse_fun()
 and parse_coms ()= many' (fun x -> parse_com x << keyword ";")
+and parse_if_else ()=
+  keyword "If" >> parse_coms () >>= fun c1 ->
+  keyword "Else" >> parse_coms () >>= fun c2 -> 
+  keyword "End" >>
+  pure (If (c1, c2))
+and parse_fun ()=
+  keyword "Fun" >> parse_coms () >>= fun c1 -> keyword "End" >> pure (Fun c1)
 
 
 
@@ -201,7 +207,7 @@ let rec eval (s : stack) (t : trace) (e: env) (p : prog) : trace =
      let rec inEnvironment v z =
         match v with
         | [] -> None
-        | (var, val) :: rest -> if var = z then Some val else inEnvironment rest z
+        | (var, value) :: rest -> if var = z then Some value else inEnvironment rest z
      in
      (match inEnvironment e x with
         | Some v -> eval (v :: s0) t e p0
