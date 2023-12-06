@@ -13,16 +13,6 @@ Notes:
 *)
 
 (*UTIL*)
-let explode s =
-  List.of_seq (String.to_seq s)
-
-let implode ls =
- String.of_seq (List.to_seq ls)
-
-let rec append_lists l1 l2 =
- match l1 with
- | [] -> l2
- | h :: t -> h :: append_lists t l2
 
 
 type const =
@@ -30,14 +20,16 @@ type const =
   | Bool of bool
   | Unit
   | Sym of string
-  | Closure of string * (string*const)list * com list
+  | Closure of string * (string * const) list * com list
   
 and com =
   | Push of const | Pop | Swap 
   | Trace | Add | Sub | Mul
   | Div | And | Or | Not
-  | Lt | Gt | If of com list * com list
-  | Bind | Lookup | Fun of com list
+  | Lt | Gt
+  | If of com list * com list 
+  | Bind | Lookup 
+  | Fun of com list
   | Call | Return
 
 and coms = com list
@@ -88,16 +80,12 @@ let rec parse_com ()=
   (keyword "Lookup" >> pure Lookup) <|>
   (keyword "Call" >> pure Call) <|>
   (keyword "Return" >> pure Return) <|>
-  parse_ifelse() <|>
-  parse_fun()
-and parse_coms ()= many' (fun x -> parse_com x << keyword ";")
-and parse_ifelse ()=
-  keyword "If" >> parse_coms () >>= fun c1 ->
-  keyword "Else" >> parse_coms () >>= fun c2 -> 
+  (keyword "If" >> parse_coms () >>= fun ifComs ->
+  keyword "Else" >> parse_coms () >>= fun elseCOms -> 
   keyword "End" >>
-  pure (If (c1, c2))
-and parse_fun ()=
+  pure (If (ifCOms, elseComs))) <|>
   keyword "Fun" >> parse_coms () >>= fun c1 -> keyword "End" >> pure (Fun c1)
+and parse_coms ()= many' (fun x -> parse_com x << keyword ";")
 
 
 
@@ -130,7 +118,7 @@ let toString (c : const) : string =
  | Bool false -> "False"
  | Unit -> "Unit"
  | Sym s -> s
- | Closure (name, env, coms) -> string_append (string_append ("Fun<") (name) ) ">"
+ | Closure (name, env, coms) -> "Fun<" ^ name ^ ">"
 
 let rec eval (s : stack) (t : trace) (e: env) (p : prog) : trace =
  match p with
@@ -202,8 +190,7 @@ let rec eval (s : stack) (t : trace) (e: env) (p : prog) : trace =
  | Swap :: p0 ->
    (match s with
     | x :: y :: lst -> eval  (y :: x :: lst) t e p0
-    | [] (* SwapError1 *) -> eval [] ("Panic" :: t) e []
-    | x :: [] (* SwapError2 *) -> eval [] ("Panic" :: t) e [])
+    | _ -> eval [] ("Panic" :: t) e [])
  | Bind :: p0 -> 
    (match s with
     | Sym x :: v :: s0 -> eval s0 t ((x, v) :: e) p0
@@ -211,35 +198,31 @@ let rec eval (s : stack) (t : trace) (e: env) (p : prog) : trace =
  | Lookup :: p0 -> 
    (match s with
     | Sym x :: s0 -> 
-     let rec find env (key) =
-        match env with
+     let rec inEnvironment v z =
+        match v with
         | [] -> None
-        | (k, v) :: rest -> if k = key then Some v else find rest key
+        | (var, val) :: rest -> if var = z then Some val else inEnvironment rest z
      in
-     (match find e x with
+     (match inEnvironment e x with
         | Some v -> eval (v :: s0) t e p0
         | None -> eval [] ("Panic" :: t) e [])
     | _ -> eval [] ("Panic" :: t) e [])
  | If (c1, c2) :: p0 -> 
    (match s with
-    | Bool b :: s0 ->  if b then eval s0 t e (append_lists c1 p0) else eval s0 t e (append_lists c2 p0)
+    | Bool b :: s0 ->  if b then eval s0 t e (c1 @ p0) else eval s0 t e (c2 @ p0)
     | _ -> eval [] ("Panic" :: t) e [])
  | Fun c1 :: p0 ->
    (match s with
-    | Sym x :: s0 -> let s1 = Closure(x, e, c1) :: s0 in eval s1 t e p0
+    | Sym x :: s0 -> eval (Closure(x, e, c1) :: s0) t e p0
     | _ -> eval [] ("Panic" :: t) e [])
  | Call :: p0 ->
    (match s with
-    | Closure (f, v, c) :: a :: s0 -> eval (a :: Closure(string_append (string_append "cc_foo(" (toString(a))) ")",e,p0) :: s0) t ((f,Closure(f,v,c)) :: v) c
-    | _ :: a :: s0 -> eval [] ("Panic" :: t) e []
-    | h :: [] -> eval [] ("Panic" :: t) e []
-    | [] -> eval [] ("Panic" :: t) e [])
+    | Closure (f, v, c) :: a :: s0 -> eval (a :: Closure("cc",e,p0) :: s0) t ((f,Closure(f,v,c)) :: v) c
+    | _ -> eval [] ("Panic" :: t) e [])
  | Return :: p0 ->
    (match s with
     | Closure (f, v, c) :: a :: s0 -> eval (a :: s0) t v c
-    | _ :: a :: s0 -> eval [] ("Panic" :: t) e []
-    | h :: [] -> eval [] ("Panic" :: t) e []
-    | [] -> eval [] ("Panic" :: t) e []) 
+    | _  -> eval [] ("Panic" :: t) e []) 
   
    
 (*\
