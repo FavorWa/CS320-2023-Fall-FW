@@ -322,118 +322,89 @@ let scope_expr (m : expr) : expr =
 (* ------------------------------------------------------------ *)
 
 
-let combine(s1: string) (s2: string): string =
+let combine (s1: string) (s2: string): string =
   let l1 = string_length s1 in
   let l2 = string_length s2 in
-  let l = l1 + l2 in
-  string_init l
+  let comb = l1 + l2 in
+  string_init  comb
     (fun i ->
       if i < l1 then string_get_at s1 i
       else string_get_at s2 (i - l1)
     )
 ;;
 
+ let rec comp_int x = combine "Push " (combine (string_of_int x) "; ")
+and
+    comp_bool x =
+        if x then "Push True; " else "Push False; "
 
-let parse_pro (s: string): expr =
-  match string_parse (whitespaces >> parse_expr ()) s with
-  | Some (m, []) -> scope_expr m
-  | _ -> raise SyntaxError
+and
+    comp_var x =
+         combine "Push " (combine x "; Lookup; ")
 
-
-  let rec compile_int x = combine "Push " (combine (string_of_int x) "; ")
+and
+    comp_uopr op x =
+        match op with
+        | Neg ->
+            combine (comp_expr x) "Push -1; Mul; "
+        | Not ->
+            combine (comp_expr x) "Not; "
+and
+    comp_bopr op x y =
+        match op with
+        | Add -> combine (combine (comp_expr x) (comp_expr y))"Add; "
+        | Sub -> combine(combine (comp_expr x) (comp_expr y)) "Swap; Sub; "
+        | Mul -> combine(combine(comp_expr x) (comp_expr y)) "Mul; "
+        | Div -> combine(combine(comp_expr x)(comp_expr y)) ("Swap; Div; ")
+        | Mod -> combine(combine (comp_expr(BOpr(Div, x, y)))(comp_expr y)) (combine "Mul; " (combine (comp_expr x) "Sub; "))
+        | And -> combine(combine (comp_expr x)(comp_expr y)  )"And; "
+        | Or ->  combine (combine (comp_expr x) (comp_expr y)  ) "Or; "
+        | Lt -> combine (combine (comp_expr x)(comp_expr y) ) "Swap; Lt; "
+        | Gt -> combine (combine (comp_expr x)(comp_expr y)) "Swap; Gt; "
+        | Lte -> combine (  combine(comp_expr x)(comp_expr y)  ) "Swap; Gt; Not; "
+        | Gte -> combine (combine (comp_expr x)(comp_expr y)) "Swap; Lt; Not; "
+        | Eq -> combine (combine (comp_expr x) (comp_expr y)) (combine "Swap; Gt; Not; " (combine (comp_expr x) (combine (comp_expr y) "Swap; Lt; Not; And; ")))
   and
-    cbool x =
-      if x then "Push True; " else "Push False; "
+     comp_let v x y =
+        combine (combine(comp_expr x) (combine "Push "(combine v "; Bind; ")))(  comp_expr (y))
+ 
   and
-    cvar x =
-      combine "Push " (combine x "; Lookup; ")
+    comp_fun f v x =
+        combine (combine (combine "Push " (combine f "; Fun ")) (combine "Push " (combine v "; Bind; "))) (combine (comp_expr x) "Swap; Return; End; ")
   and
-    cuopr op x =
-      match op with
-      | Neg ->
-        combine (cexpr x) "Push -1; Mul; "
-      | Not ->
-        combine (cexpr x) "Not; "
+    comp_app f v =
+        combine (combine (comp_expr f) (comp_expr v)) "Swap; Call; "
   and
-    compile_bopr op x y =
-      match op with
-      | Add ->
-        combine (combine (cexpr x) (cexpr y)) "Add; "
-      | Sub ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Sub; "
-      | Mul ->
-        combine (combine (cexpr x) (cexpr y)) "Mul; "
-      | Div ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Div; "
-      | Mod ->
-        combine (combine (cexpr (BOpr (Div, x, y))) (cexpr y)) (combine "Mul; " (combine (cexpr x) "Sub; "))
-      | And ->
-        combine (combine (cexpr x) (cexpr y)) "And; "
-      | Or ->
-        combine (combine (cexpr x) (cexpr y)) "Or; "
-      | Lt ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Lt; "
-      | Gt ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Gt; "
-      | Lte ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Gt; Not; "
-      | Gte ->
-        combine (combine (cexpr x) (cexpr y)) "Swap; Lt; Not; "
-      | Eq ->
-        combine
-          (combine (cexpr x) (cexpr y))
-          combine "Swap; Gt; Not; " (combine (cexpr x) (combine (cexpr y) "Swap; Lt; Not; And; ")
-          )
-  ;;
-  
-  let rec clet v x y =
-    combine (combine (cexpr x) (combine "Push " (combine v "; Bind; "))) (cexpr y)
+    comp_seq x y =
+        combine (combine (comp_expr x) "Pop; ") (comp_expr y)
   and
-    cfun f v x =
-      combine
-        (combine (combine "Push " (combine f "; Fun ")) (combine "Push " (combine v "; Bind; ")))
-        (combine (cexpr x) "Swap; Return; End; ")
+      comp_ifte x y z =
+          combine (combine (comp_expr x) (combine "If " (comp_expr y))) (combine "Else " (combine (comp_expr z) "End; "))
   and
-    capp f v =
-      combine (combine (cexpr f) (cexpr v)) "Swap; Call; "
+    comp_trace x =
+        combine (comp_expr x)("Trace; ")
   and
-    cseq x y =
-      combine (combine (cexpr x) "Pop; ") (cexpr y)
-  and
-    cifte x y z =
-      combine (combine (cexpr x) (combine "If " (cexpr y))) (combine "Else " (combine (cexpr z) "End; "))
-  and
-    ctrace x =
-      combine (cexpr x) "Trace; "
-  and
-    cexpr e =
+    comp_expr e =
       match e with
-      | Int x ->
-        compile_int x
-      | Bool x ->
-        cbool x
-      | Var x ->
-        cvar x
-      | Unit ->
-        "Push Unit; "
-      | UOpr (op, x) ->
-        cuopr op x
-      | BOpr (op, x, y) ->
-        compile_bopr op x y
-      | Let (v, x, y) ->
-        clet v x y
-      | Fun (f, v, x) ->
-        cfun f v x
-      | App (f, v) ->
-        capp f v
-      | Seq (x, y) ->
-        cseq x y
-      | Ifte (x, y, z) ->
-        cifte x y z
-      | Trace x ->
-        ctrace x
+      | Int x -> comp_int(x)
+      | Bool x -> comp_bool(x)
+      | Var x -> comp_var (x)
+      | Unit -> "Push Unit; "
+      | UOpr (op, x) -> comp_uopr op x
+      | BOpr (op, x, y) -> comp_bopr op x y
+      | Let (v, x, y) -> comp_let v x y
+      | Fun (f, v, x) -> comp_fun f v x
+      | App (f, v) -> comp_app f v
+      | Seq (x, y) -> comp_seq x y
+      | Ifte (x, y, z) -> comp_ifte x y z
+      | Trace x -> comp_trace x
       | _ -> "error; "
-  ;;
-  
-  let compile (s: string): string =
-    cexpr (parse_pro s)
+
+let parse_prog (s : string) : expr =
+  match string_parse (whitespaces >> parse_expr ()) s with
+    | Some (m, []) -> scope_expr m
+    | _ -> raise SyntaxError
+
+let compile (s: string) : string =
+    comp_expr (parse_prog(s))
+
