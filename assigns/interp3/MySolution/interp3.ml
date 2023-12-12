@@ -322,7 +322,7 @@ let scope_expr (m : expr) : expr =
 (* ------------------------------------------------------------ *)
 
 
-let slay (s1: string) (s2: string): string =
+let concat (s1: string) (s2: string): string =
   let l1 = string_length s1 in
   let l2 = string_length s2 in
   let l = l1 + l2 in
@@ -341,7 +341,7 @@ let slay (s1: string) (s2: string): string =
 
 
 
-let parse_prog (s : string) : expr =
+let parse_pro (s : string) : expr =
   match string_parse (whitespaces >> parse_expr ()) s with
   | Some (m, []) -> scope_expr m
   | _ -> raise SyntaxError
@@ -354,79 +354,79 @@ let parse_prog (s : string) : expr =
 
 
 
- let rec compile_int x = slay "Push " (slay (string_of_int x) "; ")
+ let rec compile_int x = concat "Push " (concat (string_of_int x) "; ")
 and
     cbool x =
         if x then "Push True; " else "Push False; "
 
 and
     cvar x =
-         slay "Push " (slay x "; Lookup; ")
+         concat "Push " (concat x "; Lookup; ")
 
 and
     cuopr op x =
         match op with
         | Neg ->
-            slay (cexpr x) "Push -1; Mul; "
+            concat (cexpr x) "Push -1; Mul; "
         | Not ->
-            slay (cexpr x) "Not; "
+            concat (cexpr x) "Not; "
 and
     compile_bopr op x y =
         match op with
         | Add ->
-            slay (
-              slay (cexpr x) (cexpr y)
+            concat (
+              concat (cexpr x) (cexpr y)
               )"Add; "
         | Sub ->
-            slay(   slay (cexpr x) (cexpr y)    ) "Swap; Sub; "
+            concat(   concat (cexpr x) (cexpr y)    ) "Swap; Sub; "
         | Mul ->
-            slay(   slay(cexpr x) (cexpr y)) "Mul; "
+            concat(   concat(cexpr x) (cexpr y)) "Mul; "
         | Div ->
-            slay(slay(cexpr x)(cexpr y)) ("Swap; Div; ")
+            concat(concat(cexpr x)(cexpr y)) ("Swap; Div; ")
         | Mod ->
    
-            slay(slay (cexpr(BOpr(Div, x, y)))(cexpr y)) (slay "Mul; " (slay (cexpr x) "Sub; "))
+            concat(concat (cexpr(BOpr(Div, x, y)))(cexpr y)) (concat "Mul; " (concat (cexpr x) "Sub; "))
         | And ->
-            slay(slay (cexpr x)(cexpr y)  )"And; "
+            concat(concat (cexpr x)(cexpr y)  )"And; "
         | Or ->
-            slay (slay (cexpr x) (cexpr y)  ) "Or; "
+            concat (concat (cexpr x) (cexpr y)  ) "Or; "
         | Lt ->
-            slay (slay (cexpr x)(cexpr y) ) "Swap; Lt; "
+            concat (concat (cexpr x)(cexpr y) ) "Swap; Lt; "
         | Gt ->
-            slay (slay (cexpr x)(cexpr y)) "Swap; Gt; "
+            concat (concat (cexpr x)(cexpr y)) "Swap; Gt; "
         | Lte ->
-            slay (  slay(cexpr x)(cexpr y)  ) "Swap; Gt; Not; "
+            concat (  concat(cexpr x)(cexpr y)  ) "Swap; Gt; Not; "
         | Gte ->
-            slay (slay (cexpr x)(cexpr y)) "Swap; Lt; Not; "
+            concat (concat (cexpr x)(cexpr y)) "Swap; Lt; Not; "
         | Eq ->
-            slay
-            (slay (cexpr x) (cexpr y))
-             (slay "Swap; Gt; Not; " (slay (cexpr x) (slay (cexpr y) "Swap; Lt; Not; And; ")
+            concat
+            (concat (cexpr x) (cexpr y))
+             (concat "Swap; Gt; Not; " (concat (cexpr x) (concat (cexpr y) "Swap; Lt; Not; And; ")
              )
              
              
              )
   and
      clet v x y =
-        slay (slay(cexpr x) (slay "Push "(slay v "; Bind; ")))(  cexpr (y))
+        concat (concat(cexpr x) (concat "Push "(concat v "; Bind; ")))(  cexpr (y))
  
   and
     cfun f v x =
-        slay (slay (slay "Push " (slay f "; Fun ")) (slay "Push " (slay v "; Bind; "))) (slay (cexpr x) "Swap; Return; End; ")
+        concat (concat (concat "Push " (concat f "; Fun ")) (concat "Push " (concat v "; Bind; "))) (concat (cexpr x) "Swap; Return; End; ")
   and
     capp f v =
-        slay (slay (cexpr f) (cexpr v)) "Swap; Call; "
+        concat (concat (cexpr f) (cexpr v)) "Swap; Call; "
 
 
   and
     cseq x y =
-        slay (slay (cexpr x) "Pop; ") (cexpr y)
+        concat (concat (cexpr x) "Pop; ") (cexpr y)
   and
       cifte x y z =
-          slay (slay (cexpr x) (slay "If " (cexpr y))) (slay "Else " (slay (cexpr z) "End; "))
+          concat (concat (cexpr x) (concat "If " (cexpr y))) (concat "Else " (concat (cexpr z) "End; "))
   and
     ctrace x =
-        slay (cexpr x)("Trace; ")
+        concat (cexpr x)("Trace; ")
   and
     cexpr e =
       match e with
