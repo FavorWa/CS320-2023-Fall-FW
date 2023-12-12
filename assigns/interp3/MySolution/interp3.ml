@@ -52,7 +52,7 @@ let rec chain_right (p : 'a parser) (q : ('a -> 'a -> 'a) parser) : 'a parser =
   let* m = p in
   (let* f = q in
    let* rest = chain_right p q in
-   pure (f m rest)) <|> 
+   pure (f m rest)) <|>
   (pure m)
 
 let opt (p : 'a parser) : 'a option parser =
@@ -74,8 +74,8 @@ let parse_unit : expr parser =
 (* names *)
 
 let isReserved s =
-  let reserved = 
-    ["let"; "rec"; "in"; "fun"; "if"; "then"; "else"; "trace"; "mod"; "not"] 
+  let reserved =
+    ["let"; "rec"; "in"; "fun"; "if"; "then"; "else"; "trace"; "mod"; "not"]
   in
   list_exists reserved (fun s0 -> s0 = s)
 
@@ -142,14 +142,14 @@ let parse_seq : (expr -> expr -> expr) parser =
 
 (* expression parsing *)
 
-let rec parse_expr () = 
+let rec parse_expr () =
   let* _ = pure () in
   parse_expr9 ()
 
-and parse_expr1 () : expr parser = 
+and parse_expr1 () : expr parser =
   let* _ = pure () in
-  parse_int <|> 
-  parse_bool <|> 
+  parse_int <|>
+  parse_bool <|>
   parse_unit <|>
   parse_var () <|>
   parse_fun () <|>
@@ -182,11 +182,11 @@ and parse_expr5 () : expr parser =
   chain_left (parse_expr4 ()) opr
 
 and parse_expr6 () : expr parser =
-  let opr = 
-    parse_lte <|> 
+  let opr =
+    parse_lte <|>
     parse_gte <|>
     parse_neq <|>
-    parse_lt <|> 
+    parse_lt <|>
     parse_gt <|>
     parse_eq
   in
@@ -207,7 +207,7 @@ and parse_var () : expr parser =
 
 and parse_fun () : expr parser =
   let* _ = keyword "fun" in
-  let* xs = many1 parse_name in 
+  let* xs = many1 parse_name in
   let* _ = keyword "->" in
   let* body = parse_expr () in
   let m = list_foldright xs body (fun x acc -> Fun ("", x, acc)) in
@@ -249,7 +249,7 @@ and parse_ifte () : expr parser =
 and parse_trace () : expr parser =
   let* _ = keyword "trace" in
   let* m = parse_expr1 () in
-  pure (Trace m) 
+  pure (Trace m)
 
 and parse_not () : expr parser =
   let* _ = keyword "not" in
@@ -277,22 +277,22 @@ let find_var scope s =
       else loop scope
   in loop scope
 
-let scope_expr (m : expr) : expr = 
+let scope_expr (m : expr) : expr =
   let rec aux scope m =
     match m with
     | Int i -> Int i
     | Bool b -> Bool b
     | Unit -> Unit
     | UOpr (opr, m) -> UOpr (opr, aux scope m)
-    | BOpr (opr, m, n) -> 
+    | BOpr (opr, m, n) ->
       let m = aux scope m in
       let n = aux scope n in
       BOpr (opr, m, n)
-    | Var s -> 
+    | Var s ->
       (match find_var scope s with
        | None -> raise (UnboundVariable s)
        | Some x -> Var x)
-    | Fun (f, x, m) -> 
+    | Fun (f, x, m) ->
       let fvar = new_var f in
       let xvar = new_var x in
       let m = aux ((f, fvar) :: (x, xvar) :: scope) m in
@@ -321,11 +321,145 @@ let scope_expr (m : expr) : expr =
 
 (* ------------------------------------------------------------ *)
 
-(* parser for the high-level language *)
+
+let slay (s1: string) (s2: string): string =
+  let l1 = string_length s1 in
+  let l2 = string_length s2 in
+  let l = l1 + l2 in
+  string_init l
+    (fun i ->
+      if i < l1 then string_get_at s1 i
+      else string_get_at s2 (i - l1)
+    )
+;;
+
+
+
+
+
+
+
+
 
 let parse_prog (s : string) : expr =
   match string_parse (whitespaces >> parse_expr ()) s with
   | Some (m, []) -> scope_expr m
   | _ -> raise SyntaxError
 
-let compile (s : string) : string = (* YOUR CODE *)
+
+
+
+
+
+
+
+
+ let rec compile_int x = slay "Push " (slay (string_of_int x) "; ")
+and
+    cbool x =
+        if x then "Push True; " else "Push False; "
+
+and
+    cvar x =
+         slay "Push " (slay x "; Lookup; ")
+
+and
+    cuopr op x =
+        match op with
+        | Neg ->
+            slay (cexpr x) "Push -1; Mul; "
+        | Not ->
+            slay (cexpr x) "Not; "
+and
+    compile_bopr op x y =
+        match op with
+        | Add ->
+            slay (
+              slay (cexpr x) (cexpr y)
+              )"Add; "
+        | Sub ->
+            slay(   slay (cexpr x) (cexpr y)    ) "Swap; Sub; "
+        | Mul ->
+            slay(   slay(cexpr x) (cexpr y)) "Mul; "
+        | Div ->
+            slay(slay(cexpr x)(cexpr y)) ("Swap; Div; ")
+        | Mod ->
+   
+            slay(slay (cexpr(BOpr(Div, x, y)))(cexpr y)) (slay "Mul; " (slay (cexpr x) "Sub; "))
+        | And ->
+            slay(slay (cexpr x)(cexpr y)  )"And; "
+        | Or ->
+            slay (slay (cexpr x) (cexpr y)  ) "Or; "
+        | Lt ->
+            slay (slay (cexpr x)(cexpr y) ) "Swap; Lt; "
+        | Gt ->
+            slay (slay (cexpr x)(cexpr y)) "Swap; Gt; "
+        | Lte ->
+            slay (  slay(cexpr x)(cexpr y)  ) "Swap; Gt; Not; "
+        | Gte ->
+            slay (slay (cexpr x)(cexpr y)) "Swap; Lt; Not; "
+        | Eq ->
+            slay
+            (slay (cexpr x) (cexpr y))
+             (slay "Swap; Gt; Not; " (slay (cexpr x) (slay (cexpr y) "Swap; Lt; Not; And; ")
+             )
+             
+             
+             )
+  and
+     clet v x y =
+        slay (slay(cexpr x) (slay "Push "(slay v "; Bind; ")))(  cexpr (y))
+ 
+  and
+    cfun f v x =
+        slay (slay (slay "Push " (slay f "; Fun ")) (slay "Push " (slay v "; Bind; "))) (slay (cexpr x) "Swap; Return; End; ")
+  and
+    capp f v =
+        slay (slay (cexpr f) (cexpr v)) "Swap; Call; "
+
+
+  and
+    cseq x y =
+        slay (slay (cexpr x) "Pop; ") (cexpr y)
+  and
+      cifte x y z =
+          slay (slay (cexpr x) (slay "If " (cexpr y))) (slay "Else " (slay (cexpr z) "End; "))
+  and
+    ctrace x =
+        slay (cexpr x)("Trace; ")
+  and
+    cexpr e =
+      match e with
+      | Int x ->
+          compile_int(x)
+      | Bool x ->
+          cbool(x)
+      | Var x ->
+          cvar (x)
+
+      | Unit ->
+           "Push Unit; "
+      | UOpr (op, x) ->
+          cuopr op x
+      | BOpr (op, x, y) ->
+          compile_bopr op x y
+      | Let (v, x, y) ->
+          clet v x y
+      | Fun (f, v, x) ->
+          cfun f v x
+      | App (f, v) ->
+          capp f v
+      | Seq (x, y) ->
+          cseq x y
+      | Ifte (x, y, z) ->
+          cifte x y z
+      | Trace x ->
+          ctrace x
+      | _ -> "error; "
+
+
+
+
+let compile (s: string) : string =
+    cexpr  (parse_prog(s))
+
